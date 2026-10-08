@@ -4,20 +4,23 @@
   1. Security Gate Modal:
      - Secure ID & Password check without pre-filled values to grant admin control.
   2. Admin Navigation Header:
-     - Agency Branding & Preview Client Report Link (`../index.html`).
+     - Agency Branding & Dynamic Preview Client Report Link (`../[client_filename].html`).
   3. Client & Month Selector Tower:
-     - Add new client prompt, select active month, reset sample DB.
-  4. Live Comment & Anomaly Editors:
-     - Strategy Comment textarea & Operational Anomalies textarea.
-  5. Bulk TSV Importer (Copy & Paste from Excel):
-     - Auto-parses TSV string [Date | Media | Imp | Clicks | Cost | Conv] into structured database.
-  6. Individual Data Row Editor:
-     - Table view allowing inline edit, date picking, media dropdown, cost input, and delete action.
+     - Select active client with linked HTML filename, edit linked filename, add new client with custom HTML file mapping, select active month, reset sample DB.
+  4. HTML Formatted Strategy Comment Editor (Top Priority):
+     - Placed at the very top of the dashboard.
+     - Supports HTML tag formatting with quick toolbar buttons (Bold, Highlight, List, Badge) and live HTML rendered preview box.
+  5. Operational Anomalies Textarea:
+     - Secondary operational notes & emergency response log.
+  6. Bulk TSV Importer (7 Columns):
+     - Auto-parses TSV string [Date | Media | Imp | Reach | Clicks | Cost | Result] into structured database.
+  7. Individual Data Row Editor:
+     - Table view allowing inline edit for Date, Media, Impressions, Reach, Clicks, Cost, and Result.
 -->
 
 <!-- Visualization & Content Choices:
   - Synchronizes changes directly to browser's LocalStorage under `MEDIA_REPORT_DB`.
-  - Simple JS logic to maintain multi-client and multi-month schema.
+  - Schema includes reach and result fields and htmlFilename mapping per client.
 -->
 
 <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
@@ -36,6 +39,7 @@
 </head>
 <body class="min-h-screen flex flex-col antialiased">
 
+  <!-- 보안 로그인 모달 (초기값 완전 비움) -->
   <div id="login-modal" class="fixed inset-0 bg-slate-900/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-slate-200">
       <div class="text-center mb-6">
@@ -62,8 +66,10 @@
     </div>
   </div>
 
+  <!-- 관리자 대시보드 메인 영역 -->
   <div id="admin-main-content" class="hidden flex-col min-h-screen">
     
+    <!-- 어드민 상단 네비게이션 헤더 -->
     <header class="bg-slate-900 text-white sticky top-0 z-40 shadow-md">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex items-center justify-between">
         <div class="flex items-center space-x-2">
@@ -71,20 +77,29 @@
           <h1 class="text-sm sm:text-base font-bold">통합 매체 관리자 시스템</h1>
         </div>
 
-        <a href="../index.html" target="_blank" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition flex items-center space-x-1">
-          <span>&#128065; 클라이언트 보고서 미리보기</span>
+        <a id="preview-client-link" href="../alpha.html" target="_blank" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition flex items-center space-x-1 shadow-sm">
+          <span>&#128065; <span id="preview-filename-text">alpha.html</span> 보고서 미리보기</span>
         </a>
       </div>
     </header>
 
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 flex-grow w-full">
       
+      <!-- 1. 고객사 및 집행월 선택 셀렉터 -->
       <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
         <div class="flex flex-wrap items-center gap-4">
           <div>
             <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">고객사 선택</label>
             <select id="admin-client-select" onchange="changeClient(this.value)" class="bg-slate-50 border border-slate-300 font-bold text-xs text-slate-900 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-slate-900">
             </select>
+          </div>
+
+          <div>
+            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">연결된 HTML 파일명</label>
+            <div class="flex items-center space-x-1">
+              <input type="text" id="edit-client-html-file" class="bg-slate-50 border border-slate-300 font-mono text-xs text-slate-800 rounded-lg px-2.5 py-1.5 w-32 focus:outline-none focus:ring-2 focus:ring-slate-900" placeholder="alpha.html">
+              <button onclick="updateClientHtmlFilename()" class="px-2.5 py-1.5 text-xs font-bold bg-slate-200 text-slate-700 hover:bg-slate-300 rounded-lg transition">수정</button>
+            </div>
           </div>
 
           <div>
@@ -95,7 +110,7 @@
         </div>
 
         <div class="flex items-center space-x-2">
-          <button onclick="addNewClientPrompt()" class="px-3.5 py-2 text-xs font-bold bg-slate-800 text-white hover:bg-slate-700 rounded-lg transition">
+          <button onclick="addNewClientPrompt()" class="px-3.5 py-2 text-xs font-bold bg-slate-800 text-white hover:bg-slate-700 rounded-lg transition shadow-sm">
             + 신규 고객사 추가
           </button>
           <button onclick="resetCurrentClientData()" class="px-3.5 py-2 text-xs font-bold bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 rounded-lg transition">
@@ -104,35 +119,66 @@
         </div>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-          <label class="block text-xs font-bold text-slate-800 mb-1.5">
-            &#128221; 총괄 전략 코멘트 (Executive Strategy Comment)
-          </label>
-          <textarea id="edit-strategy-comment" rows="4" onchange="saveCommentsFromAdmin()" class="w-full text-xs p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none" placeholder="월간 총평 및 핵심 KPI 달성 내역을 입력하세요."></textarea>
+      <!-- 2. 최상단 HTML 편집 가능한 전략 코멘트 박스 (HTML Comment Editor) -->
+      <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+          <div>
+            <h2 class="text-sm font-bold text-slate-900 flex items-center space-x-1.5">
+              <span>&#128221;</span>
+              <span>최상단 전략 HTML 코멘트 박스 (HTML Comment Box)</span>
+            </h2>
+            <p class="text-[11px] text-slate-500 mt-0.5">클라이언트 보고서 최상단에 노출되는 서식 태그(HTML) 적용 가능 총평 영역입니다.</p>
+          </div>
+
+          <!-- HTML 태그 빠른 삽입 툴바 -->
+          <div class="flex flex-wrap items-center gap-1.5 bg-slate-50 p-1.5 rounded-xl border border-slate-200">
+            <span class="text-[10px] font-bold text-slate-400 px-1">빠른 서식:</span>
+            <button type="button" onclick="insertHtmlTag('<b>', '</b>')" class="px-2 py-1 text-[11px] font-bold bg-white border border-slate-300 rounded hover:bg-slate-100" title="진하게"><b>B</b></button>
+            <button type="button" onclick="insertHtmlTag('<mark class=\'bg-yellow-200 px-1 rounded\'>', '</mark>')" class="px-2 py-1 text-[11px] bg-yellow-100 text-yellow-800 font-bold border border-yellow-300 rounded hover:bg-yellow-200" title="형광펜">Highlight</button>
+            <button type="button" onclick="insertHtmlTag('<span class=\'text-emerald-600 font-bold\'>', '</span>')" class="px-2 py-1 text-[11px] bg-emerald-50 text-emerald-700 font-bold border border-emerald-200 rounded hover:bg-emerald-100" title="초록 강조">Green</button>
+            <button type="button" onclick="insertHtmlTag('<ul class=\'list-disc list-inside space-y-1 my-2\'>\n  <li>', '</li>\n</ul>')" class="px-2 py-1 text-[11px] bg-white border border-slate-300 rounded hover:bg-slate-100" title="목록">• List</button>
+            <button type="button" onclick="insertHtmlTag('<span class=\'px-2 py-0.5 bg-slate-900 text-white rounded text-[10px] font-bold mr-1\'>', '</span>')" class="px-2 py-1 text-[11px] bg-slate-800 text-white font-bold rounded hover:bg-slate-700" title="태그 배지">Badge</button>
+          </div>
         </div>
 
-        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-          <label class="block text-xs font-bold text-amber-800 mb-1.5">
-            &#1601; 운영 이슈 및 대응 내역 (Operational Actions)
-          </label>
-          <textarea id="edit-anomaly-comment" rows="4" onchange="saveCommentsFromAdmin()" class="w-full text-xs p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:outline-none" placeholder="CPC 급등 대응, 소재 교체 등 운영 이슈를 줄바꿈(Enter)으로 구분해 입력하세요."></textarea>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">HTML 코드 편집기</label>
+            <textarea id="edit-strategy-comment" rows="7" oninput="handleCommentInput()" class="w-full font-mono text-xs p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-slate-50 focus:bg-white" placeholder="<h4 class='text-sm font-bold text-slate-900 mb-1'>3월 성과 종합 총평</h4>&#10;<p>3월 총 집행비용은 <b>1,485만 원</b>으로 계획 대비 99.0% 소진율을 달성했습니다.</p>"></textarea>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">클라이언트 실제 노출 프리뷰 (Live Preview)</label>
+            <div id="comment-live-preview" class="w-full h-full min-h-[148px] text-xs p-4 border border-slate-200 rounded-xl bg-slate-50/50 leading-relaxed overflow-y-auto">
+              <!-- Live Rendered HTML -->
+            </div>
+          </div>
         </div>
       </div>
 
+      <!-- 3. 운영 특이사항 및 조치 내역 -->
+      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+        <label class="block text-xs font-bold text-amber-800 mb-1.5">
+          &#1601; 운영 이슈 및 최적화 대응 내역 (Operational Actions)
+        </label>
+        <textarea id="edit-anomaly-comment" rows="3" onchange="saveCommentsFromAdmin()" class="w-full text-xs p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:outline-none" placeholder="CPC 급등 대응, 소재 교체 등 운영 이슈를 줄바꿈(Enter)으로 구분해 입력하세요."></textarea>
+      </div>
+
+      <!-- 4. 엑셀/스프레드시트 대량 복사-붙여넣기 (7개 열 정규화) -->
       <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
           <div>
             <h3 class="text-xs font-bold text-slate-900">엑셀/스프레드시트 대량 복사-붙여넣기 (Bulk Copy & Paste)</h3>
-            <p class="text-[11px] text-slate-500">엑셀 표의 열 순서 [ 날짜 | 매체 | 노출수 | 클릭수 | 비용 | 전환수 ] 대로 복사(Ctrl+C) 후 아래 상자에 붙여넣으세요.</p>
+            <p class="text-[11px] text-slate-500">엑셀 표의 열 순서 <span class="font-bold text-slate-800">[ 날짜 | 매체 | 노출수 | 도달수 | 클릭수 | 비용 | 결과값 ]</span> 대로 복사(Ctrl+C) 후 아래 상자에 붙여넣으세요.</p>
           </div>
           <button onclick="parseBulkPasteData()" class="px-4 py-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition shadow-sm self-start sm:self-auto">
             붙여넣은 데이터 적용하기
           </button>
         </div>
-        <textarea id="bulk-paste-area" rows="4" class="w-full font-mono text-xs p-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900" placeholder="2026-03-01	Naver	45200	1250	1375000	62&#10;2026-03-01	Meta	89000	1420	715000	35..."></textarea>
+        <textarea id="bulk-paste-area" rows="4" class="w-full font-mono text-xs p-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900" placeholder="2026-03-01	Naver	45200	38000	1250	1375000	62&#10;2026-03-01	Meta	89000	62000	1420	715000	35..."></textarea>
       </div>
 
+      <!-- 5. 등록된 일별 매체 데이터 (수정 & 삭제) -->
       <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div class="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
           <h3 class="text-xs font-bold text-slate-900">등록된 일별 매체 데이터 (수정 & 삭제)</h3>
@@ -140,16 +186,17 @@
             + 수동 1행 추가
           </button>
         </div>
-        <div class="max-h-80 overflow-y-auto overflow-x-auto">
+        <div class="max-h-96 overflow-y-auto overflow-x-auto">
           <table class="w-full text-left text-xs">
             <thead class="bg-slate-100 text-slate-600 sticky top-0 border-b border-slate-200">
               <tr>
                 <th class="py-2.5 px-3">날짜</th>
                 <th class="py-2.5 px-3">매체</th>
-                <th class="py-2.5 px-3">노출수</th>
-                <th class="py-2.5 px-3">클릭수</th>
-                <th class="py-2.5 px-3">비용 (VAT포함)</th>
-                <th class="py-2.5 px-3">전환수</th>
+                <th class="py-2.5 px-3 text-right">노출수</th>
+                <th class="py-2.5 px-3 text-right">도달수</th>
+                <th class="py-2.5 px-3 text-right">클릭수</th>
+                <th class="py-2.5 px-3 text-right">비용 (VAT포함)</th>
+                <th class="py-2.5 px-3 text-right">결과값</th>
                 <th class="py-2.5 px-3 text-center">작업</th>
               </tr>
             </thead>
@@ -165,17 +212,20 @@
   <script>
     const defaultDatabase = {
       "알파코퍼레이션": {
-        "2026.03": {
-          strategyComment: "3월 총 집행비용은 1,485만 원 (VAT 10% 포함)으로 월초 수립 예산 대비 99.0%의 안정적인 소진율을 달성했습니다.\n구글 검색광고 고효율 키워드 집중 배치와 메타 크리에이티브 교체를 통해 평균 CTR이 전월 대비 +0.28%p 개선되었습니다.",
-          anomalyComment: "네이버 3월 3주차 CPC 급등 대응: 경쟁 프로모션 입찰로 메인 키워드 CPC가 상승하여 입찰가 상한선 1,800원 제한 조정.\n메타 소재 피로도 교체: 노출 빈도수 3.8회 도달 시점에 신규 숏폼 소재 2종 투입하여 CTR 1.85% 회복.",
-          rawDataset: [
-            { date: '2026-03-01', media: 'Naver', impressions: 45200, clicks: 1250, cost: 1375000, conv: 62 },
-            { date: '2026-03-01', media: 'Meta', impressions: 89000, clicks: 1420, cost: 715000, conv: 35 },
-            { date: '2026-03-01', media: 'Google', impressions: 32000, clicks: 880, cost: 660000, conv: 41 },
-            { date: '2026-03-02', media: 'Naver', impressions: 48100, clicks: 1310, cost: 1441000, conv: 68 },
-            { date: '2026-03-02', media: 'Meta', impressions: 91500, clicks: 1505, cost: 748000, conv: 39 },
-            { date: '2026-03-02', media: 'Google', impressions: 34100, clicks: 920, cost: 693000, conv: 45 }
-          ]
+        htmlFilename: "alpha.html",
+        months: {
+          "2026.03": {
+            strategyComment: "<h4 class='text-sm font-bold text-slate-900 mb-1.5'>3월 퍼포먼스 마케팅 종합 성과 평가</h4>\n<p>3월 총 집행비용은 <b class='text-slate-900'>1,485만 원 (VAT포함)</b>으로 계획 대비 99.0%의 안정적인 예산 소진율을 기록했습니다.</p>\n<p class='mt-1'>구글 검색광고의 고효율 키워드 재배치와 메타 숏폼 크리에이티브 투입을 통해 <mark class='bg-yellow-200 px-1 rounded font-semibold'>평균 CTR이 전월 대비 +0.28%p 개선</mark>되었습니다.</p>",
+            anomalyComment: "네이버 3월 3주차 CPC 급등 대응: 경쟁 프로모션 입찰로 메인 키워드 CPC가 상승하여 입찰가 상한선 1,800원 제한 조정.\n메타 소재 피로도 교체: 노출 빈도수 3.8회 도달 시점에 신규 숏폼 소재 2종 투입하여 CTR 1.85% 회복.",
+            rawDataset: [
+              { date: '2026-03-01', media: 'Naver', impressions: 45200, reach: 38000, clicks: 1250, cost: 1375000, result: 62 },
+              { date: '2026-03-01', media: 'Meta', impressions: 89000, reach: 64000, clicks: 1420, cost: 715000, result: 35 },
+              { date: '2026-03-01', media: 'Google', impressions: 32000, reach: 27000, clicks: 880, cost: 660000, result: 41 },
+              { date: '2026-03-02', media: 'Naver', impressions: 48100, reach: 40200, clicks: 1310, cost: 1441000, result: 68 },
+              { date: '2026-03-02', media: 'Meta', impressions: 91500, reach: 67100, clicks: 1505, cost: 748000, result: 39 },
+              { date: '2026-03-02', media: 'Google', impressions: 34100, reach: 28900, clicks: 920, cost: 693000, result: 45 }
+            ]
+          }
         }
       }
     };
@@ -187,7 +237,20 @@
     function loadDatabase() {
       const saved = localStorage.getItem('MEDIA_REPORT_DB');
       if (saved) {
-        try { db = JSON.parse(saved); } catch(e) { db = defaultDatabase; }
+        try { 
+          db = JSON.parse(saved); 
+          // 레거시 스키마 호환 보정
+          Object.keys(db).forEach(client => {
+            if (!db[client].months) {
+              const oldMonths = { ...db[client] };
+              delete oldMonths.htmlFilename;
+              db[client] = {
+                htmlFilename: `${client.toLowerCase()}.html`,
+                months: oldMonths
+              };
+            }
+          });
+        } catch(e) { db = defaultDatabase; }
       } else {
         db = defaultDatabase;
         saveDatabase();
@@ -203,7 +266,7 @@
       const id = document.getElementById('input-admin-id').value.trim();
       const pw = document.getElementById('input-admin-pw').value.trim();
 
-      if (id === 'admina' && pw === '12341') {
+      if (id === 'admin' && pw === '1234') {
         document.getElementById('login-modal').classList.add('hidden');
         document.getElementById('admin-main-content').classList.remove('hidden');
         document.getElementById('admin-main-content').classList.add('flex');
@@ -227,14 +290,35 @@
         if (client === currentClient) opt.selected = true;
         select.appendChild(opt);
       });
+      updateClientHtmlLinkDisplay();
+    }
+
+    function updateClientHtmlLinkDisplay() {
+      const clientData = db[currentClient] || {};
+      const filename = clientData.htmlFilename || `${currentClient}.html`;
+      document.getElementById('edit-client-html-file').value = filename;
+      document.getElementById('preview-filename-text').innerText = filename;
+      document.getElementById('preview-client-link').href = `../${filename}`;
+    }
+
+    function updateClientHtmlFilename() {
+      const newFilename = document.getElementById('edit-client-html-file').value.trim();
+      if (newFilename) {
+        if (!db[currentClient]) db[currentClient] = { htmlFilename: newFilename, months: {} };
+        db[currentClient].htmlFilename = newFilename;
+        saveDatabase();
+        updateClientHtmlLinkDisplay();
+        alert(`고객사 [${currentClient}]의 연동 파일명이 [${newFilename}]으로 업데이트되었습니다.`);
+      }
     }
 
     function changeClient(clientName) {
       currentClient = clientName;
-      const months = Object.keys(db[currentClient] || {});
+      const months = Object.keys(db[currentClient]?.months || {});
       if (months.length > 0 && !months.includes(currentMonth)) {
         currentMonth = months[0];
       }
+      updateClientHtmlLinkDisplay();
       renderMonthNav();
       renderAdminPanel();
     }
@@ -244,11 +328,15 @@
       if (name && name.trim()) {
         const trimmed = name.trim();
         if (!db[trimmed]) {
+          const defaultFilename = `${trimmed.toLowerCase()}.html`;
           db[trimmed] = {
-            "2026.03": {
-              strategyComment: "신규 고객사 성과 코멘트를 입력하세요.",
-              anomalyComment: "특이사항을 입력하세요.",
-              rawDataset: []
+            htmlFilename: defaultFilename,
+            months: {
+              "2026.03": {
+                strategyComment: "<p>신규 고객사 전략 총평 코멘트를 입력하세요.</p>",
+                anomalyComment: "특이사항을 입력하세요.",
+                rawDataset: []
+              }
             }
           };
           saveDatabase();
@@ -277,21 +365,50 @@
     }
 
     function renderAdminPanel() {
-      if (!db[currentClient]) db[currentClient] = {};
-      if (!db[currentClient][currentMonth]) {
-        db[currentClient][currentMonth] = { strategyComment: '', anomalyComment: '', rawDataset: [] };
+      if (!db[currentClient]) db[currentClient] = { htmlFilename: `${currentClient}.html`, months: {} };
+      if (!db[currentClient].months) db[currentClient].months = {};
+      if (!db[currentClient].months[currentMonth]) {
+        db[currentClient].months[currentMonth] = { strategyComment: '', anomalyComment: '', rawDataset: [] };
       }
 
-      const activeData = db[currentClient][currentMonth];
+      const activeData = db[currentClient].months[currentMonth];
       document.getElementById('edit-strategy-comment').value = activeData.strategyComment || '';
       document.getElementById('edit-anomaly-comment').value = activeData.anomalyComment || '';
 
+      updateLiveCommentPreview();
       renderAdminDataTable(activeData.rawDataset || []);
     }
 
+    function handleCommentInput() {
+      updateLiveCommentPreview();
+      saveCommentsFromAdmin();
+    }
+
+    function updateLiveCommentPreview() {
+      const htmlVal = document.getElementById('edit-strategy-comment').value;
+      const previewBox = document.getElementById('comment-live-preview');
+      previewBox.innerHTML = htmlVal || '<span class="text-slate-400 font-sans">실시간 프리뷰 영역입니다. 상단에 코멘트를 입력하세요.</span>';
+    }
+
+    function insertHtmlTag(startTag, endTag) {
+      const textarea = document.getElementById('edit-strategy-comment');
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const text = textarea.value;
+      const selectedText = text.substring(start, end) || '강조 문구';
+      const replacement = startTag + selectedText + endTag;
+
+      textarea.value = text.substring(0, start) + replacement + text.substring(end);
+      textarea.focus();
+      textarea.selectionStart = start + startTag.length;
+      textarea.selectionEnd = start + startTag.length + selectedText.length;
+
+      handleCommentInput();
+    }
+
     function saveCommentsFromAdmin() {
-      db[currentClient][currentMonth].strategyComment = document.getElementById('edit-strategy-comment').value;
-      db[currentClient][currentMonth].anomalyComment = document.getElementById('edit-anomaly-comment').value;
+      db[currentClient].months[currentMonth].strategyComment = document.getElementById('edit-strategy-comment').value;
+      db[currentClient].months[currentMonth].anomalyComment = document.getElementById('edit-anomaly-comment').value;
       saveDatabase();
     }
 
@@ -300,7 +417,7 @@
       tbody.innerHTML = '';
 
       if (dataset.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="py-4 text-center text-slate-400 font-sans">등록된 데이터가 없습니다. 붙여넣기 또는 행 추가를 이용하세요.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="py-6 text-center text-slate-400 font-sans">등록된 데이터가 없습니다. 붙여넣기 또는 수동 행 추가를 이용하세요.</td></tr>';
         return;
       }
 
@@ -308,7 +425,7 @@
         const tr = document.createElement('tr');
         tr.className = 'hover:bg-slate-50';
         tr.innerHTML = `
-          <td class="py-2 px-3"><input type="date" value="${row.date}" onchange="updateRowData(${idx}, 'date', this.value)" class="border border-slate-300 px-2 py-1 rounded text-xs"></td>
+          <td class="py-2 px-3"><input type="date" value="${row.date}" onchange="updateRowData(${idx}, 'date', this.value)" class="border border-slate-300 px-2 py-1 rounded text-xs font-sans"></td>
           <td class="py-2 px-3">
             <select onchange="updateRowData(${idx}, 'media', this.value)" class="border border-slate-300 px-2 py-1 rounded text-xs font-sans">
               <option value="Naver" ${row.media==='Naver'?'selected':''}>Naver</option>
@@ -316,10 +433,11 @@
               <option value="Google" ${row.media==='Google'?'selected':''}>Google</option>
             </select>
           </td>
-          <td class="py-2 px-3"><input type="number" value="${row.impressions}" onchange="updateRowData(${idx}, 'impressions', this.value)" class="border border-slate-300 px-2 py-1 rounded text-xs w-24 text-right"></td>
-          <td class="py-2 px-3"><input type="number" value="${row.clicks}" onchange="updateRowData(${idx}, 'clicks', this.value)" class="border border-slate-300 px-2 py-1 rounded text-xs w-20 text-right"></td>
-          <td class="py-2 px-3"><input type="number" value="${row.cost}" onchange="updateRowData(${idx}, 'cost', this.value)" class="border border-slate-300 px-2 py-1 rounded text-xs w-28 text-right"></td>
-          <td class="py-2 px-3"><input type="number" value="${row.conv}" onchange="updateRowData(${idx}, 'conv', this.value)" class="border border-slate-300 px-2 py-1 rounded text-xs w-16 text-right"></td>
+          <td class="py-2 px-3"><input type="number" value="${row.impressions||0}" onchange="updateRowData(${idx}, 'impressions', this.value)" class="border border-slate-300 px-2 py-1 rounded text-xs w-24 text-right"></td>
+          <td class="py-2 px-3"><input type="number" value="${row.reach||0}" onchange="updateRowData(${idx}, 'reach', this.value)" class="border border-slate-300 px-2 py-1 rounded text-xs w-24 text-right"></td>
+          <td class="py-2 px-3"><input type="number" value="${row.clicks||0}" onchange="updateRowData(${idx}, 'clicks', this.value)" class="border border-slate-300 px-2 py-1 rounded text-xs w-20 text-right"></td>
+          <td class="py-2 px-3"><input type="number" value="${row.cost||0}" onchange="updateRowData(${idx}, 'cost', this.value)" class="border border-slate-300 px-2 py-1 rounded text-xs w-28 text-right"></td>
+          <td class="py-2 px-3"><input type="number" value="${row.result||row.conv||0}" onchange="updateRowData(${idx}, 'result', this.value)" class="border border-slate-300 px-2 py-1 rounded text-xs w-20 text-right"></td>
           <td class="py-2 px-3 text-center">
             <button onclick="deleteRowData(${idx})" class="text-red-500 hover:text-red-700 font-bold text-xs font-sans">삭제</button>
           </td>
@@ -329,7 +447,7 @@
     }
 
     function updateRowData(idx, field, val) {
-      const dataset = db[currentClient][currentMonth].rawDataset;
+      const dataset = db[currentClient].months[currentMonth].rawDataset;
       if (field === 'media' || field === 'date') {
         dataset[idx][field] = val;
       } else {
@@ -339,16 +457,16 @@
     }
 
     function deleteRowData(idx) {
-      db[currentClient][currentMonth].rawDataset.splice(idx, 1);
+      db[currentClient].months[currentMonth].rawDataset.splice(idx, 1);
       saveDatabase();
       renderAdminPanel();
     }
 
     function addEmptyDataRow() {
-      if (!db[currentClient][currentMonth].rawDataset) db[currentClient][currentMonth].rawDataset = [];
+      if (!db[currentClient].months[currentMonth].rawDataset) db[currentClient].months[currentMonth].rawDataset = [];
       const today = new Date().toISOString().split('T')[0];
-      db[currentClient][currentMonth].rawDataset.push({
-        date: today, media: 'Naver', impressions: 0, clicks: 0, cost: 0, conv: 0
+      db[currentClient].months[currentMonth].rawDataset.push({
+        date: today, media: 'Naver', impressions: 0, reach: 0, clicks: 0, cost: 0, result: 0
       });
       saveDatabase();
       renderAdminPanel();
@@ -366,33 +484,34 @@
 
       lines.forEach(line => {
         const cols = line.split('\t').map(c => c.trim());
-        if (cols.length >= 5) {
+        if (cols.length >= 6) {
           const date = cols[0];
           const media = cols[1];
           const impressions = Number(cols[2].replace(/,/g, '')) || 0;
-          const clicks = Number(cols[3].replace(/,/g, '')) || 0;
-          const cost = Number(cols[4].replace(/,/g, '')) || 0;
-          const conv = cols[5] ? (Number(cols[5].replace(/,/g, '')) || 0) : 0;
+          const reach = Number(cols[3].replace(/,/g, '')) || 0;
+          const clicks = Number(cols[4].replace(/,/g, '')) || 0;
+          const cost = Number(cols[5].replace(/,/g, '')) || 0;
+          const result = cols[6] ? (Number(cols[6].replace(/,/g, '')) || 0) : 0;
 
           if (date && media) {
-            parsedRows.push({ date, media, impressions, clicks, cost, conv });
+            parsedRows.push({ date, media, impressions, reach, clicks, cost, result });
           }
         }
       });
 
       if (parsedRows.length > 0) {
-        db[currentClient][currentMonth].rawDataset = parsedRows;
+        db[currentClient].months[currentMonth].rawDataset = parsedRows;
         saveDatabase();
         document.getElementById('bulk-paste-area').value = '';
         alert(`${parsedRows.length}건의 일자별 데이터가 성공적으로 파싱되어 저장되었습니다.`);
         renderAdminPanel();
       } else {
-        alert('올바른 엑셀 데이터 형식이 아닙니다. [날짜 | 매체 | 노출수 | 클릭수 | 비용 | 전환수] 탭 구분 형식을 확인하세요.');
+        alert('올바른 엑셀 데이터 형식이 아닙니다. [날짜 | 매체 | 노출수 | 도달수 | 클릭수 | 비용 | 결과값] 탭 구분 형식을 확인하세요.');
       }
     }
 
     function resetCurrentClientData() {
-      if(confirm('현재 데이터를 초기 데이터로 복구하시겠습니까?')) {
+      if(confirm('현재 데이터를 초기 샘플 데이터로 복구하시겠습니까?')) {
         db = JSON.parse(JSON.stringify(defaultDatabase));
         saveDatabase();
         renderAdminPanel();
