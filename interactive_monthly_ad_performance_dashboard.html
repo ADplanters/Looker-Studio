@@ -1,0 +1,469 @@
+<!-- Chosen Palette: Warm Neutral Harmony (Warm Sand #FBF9F5 main background, Soft Cream #F3F0E6 accent cards, Pure White content panels with subtle border #E2DED4, Dark Slate #1F2937 typography, Sage Green #059669 & Warm Amber #D97706 highlights) -->
+
+<!-- Application Structure Plan:
+  1. Top Global Navigation Header: Client logo/title, Month Archive Buttons (2026.01, 2026.02, 2026.03 Active), Excel Export Action Button.
+  2. Main Title Banner & Interactive Media Pivot Filter Buttons (ALL, Naver, Meta, Google).
+  3. Top Section - Dual Executive Comment Panels:
+     - Left: Strategy Comment (Overall budget consumption, Macro KPI evaluation)
+     - Right: Operational Anomalies & Actions (CPC spikes, Creative refresh log, Competitor biddings)
+  4. KPI Summary Scorecards Grid (6 Key metrics with MoM badges).
+  5. Interactive Visualization Section:
+     - Left Column (2/3): Dual-Axis Trend Chart (Daily Gross Cost vs Clicks) using Chart.js inside styled responsive canvas container.
+     - Right Column (1/3): Media Share Doughnut Chart (Budget distribution).
+  6. Detailed Daily Performance Pivot Table:
+     - Dynamic HTML table updated via JavaScript event listeners.
+     - Renders exact daily rows with calculated CTR & CPC (VAT included).
+-->
+
+<!-- Visualization & Content Choices:
+  - Chart.js Canvas implementation for line/bar trend chart and doughnut chart. No SVG, No Mermaid.
+  - Chart containers wrapped in responsive <div> tags with controlled maximum height and relative positioning to guarantee layout stability.
+  - Vanilla JS engine managing raw media datasets, calculating VAT-gross figures, CTR, CPC, dynamic filtering, DOM updates, and SheetJS multi-tab Excel export.
+-->
+
+<!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>월간 퍼포먼스 광고 성과 보고서 레포지토리</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- SheetJS CDN (Full XLSX Export Engine) -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+  
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700&display=swap');
+    body { 
+      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: #FBF9F5;
+      color: #1F2937;
+    }
+    
+    /* Strict Chart Container Constraint Rules */
+    .chart-container {
+      position: relative;
+      width: 100%;
+      max-width: 100%;
+      margin-left: auto;
+      margin-right: auto;
+      height: 280px;
+      max-height: 320px;
+    }
+    @media (min-width: 768px) {
+      .chart-container {
+        height: 310px;
+      }
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased">
+
+  <!-- 글로벌 아카이브 헤더 & 월별 네비게이션 -->
+  <header class="bg-white/90 backdrop-blur border-b border-[#E2DED4] sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center space-x-3">
+        <span class="h-3 w-3 rounded-full bg-emerald-600 animate-pulse"></span>
+        <h1 class="text-sm sm:text-base font-bold tracking-tight text-slate-900">
+          MEDIA REPORT REPOSITORY <span class="text-xs text-slate-500 font-normal ml-1">| 고객사: 알파코퍼레이션</span>
+        </h1>
+      </div>
+
+      <!-- 월별 레포지토리 URL 네비게이션 버튼 -->
+      <nav class="flex items-center space-x-1 sm:space-x-1.5 overflow-x-auto py-1">
+        <a href="#2026-01" class="px-3 py-1.5 text-xs font-medium rounded-md border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 transition">2026.01</a>
+        <a href="#2026-02" class="px-3 py-1.5 text-xs font-medium rounded-md border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 transition">2026.02</a>
+        <a href="#2026-03" class="px-3 py-1.5 text-xs font-bold rounded-md border border-emerald-600 bg-emerald-50 text-emerald-700 shadow-sm">2026.03 (최신)</a>
+        <span class="px-3 py-1.5 text-xs font-medium rounded-md border border-dashed border-slate-300 text-slate-400 bg-slate-50/50 cursor-not-allowed">2026.04 예정</span>
+      </nav>
+
+      <!-- 엑셀 내보내기 버튼 -->
+      <button onclick="exportToExcel()" class="flex items-center space-x-1.5 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold px-3.5 py-2 rounded-lg transition shadow-sm">
+        <span>&#128190; Excel 리포트 다운로드</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- 메인 컨텐츠 영역 -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 flex-grow w-full">
+
+    <!-- 대시보드 타이틀 및 동적 매체 피벗 필터 -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#E2DED4] pb-6">
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-wider text-emerald-700">Monthly Performance Media Audit</p>
+        <h2 class="text-2xl font-bold text-slate-900 mt-0.5">2026년 3월 디지털 매체 결산 보고서</h2>
+      </div>
+
+      <!-- 매체 선택 피벗 탭 -->
+      <div class="flex bg-[#F3F0E6] p-1 rounded-xl border border-[#E2DED4] shadow-inner" id="media-filter-container">
+        <button onclick="setMediaFilter('ALL')" data-media="ALL" class="media-btn px-4 py-2 rounded-lg text-xs font-bold transition bg-white text-slate-900 shadow-sm">통합 (전체)</button>
+        <button onclick="setMediaFilter('Naver')" data-media="Naver" class="media-btn px-4 py-2 rounded-lg text-xs font-bold transition text-slate-600 hover:text-slate-900">네이버 검색</button>
+        <button onclick="setMediaFilter('Meta')" data-media="Meta" class="media-btn px-4 py-2 rounded-lg text-xs font-bold transition text-slate-600 hover:text-slate-900">메타 (Meta)</button>
+        <button onclick="setMediaFilter('Google')" data-media="Google" class="media-btn px-4 py-2 rounded-lg text-xs font-bold transition text-slate-600 hover:text-slate-900">구글 애즈</button>
+      </div>
+    </div>
+
+    <!-- 1단계: 최상단 2대 코멘트 영역 (전략 평가 & 특이사항) -->
+    <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <!-- 1. 총괄 운영 코멘트 (Strategy Comment) -->
+      <div class="bg-white border border-[#E2DED4] rounded-2xl p-6 shadow-sm relative overflow-hidden">
+        <div class="absolute top-0 left-0 w-1.5 h-full bg-slate-700"></div>
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-slate-700 text-[11px] font-bold tracking-wider uppercase">Strategy Comment</span>
+          <span class="text-[11px] text-slate-400">집행월: 2026년 3월</span>
+        </div>
+        <h3 class="text-base font-bold text-slate-900 mb-2">통합 광고 성과 총괄 평가</h3>
+        <p class="text-xs leading-relaxed text-slate-600">
+          3월 총 집행비용은 <strong>1,485만 원 (VAT 10% 포함)</strong>으로 월초 수립 예산 대비 99.0%의 안정적인 소진율을 달성했습니다.
+          구글 검색광고의 고효율 키워드 집중 배치와 메타 리타깃팅 크리에이티브 교체를 통해 전체 평균 CTR이 전월 대비 <strong>+0.28%p 개선</strong>되었습니다.
+          네이버 검색광고의 경우 브랜드 키워드 점유율 1위를 견고히 유지하며 1,840건의 유효 전환을 창출했습니다.
+        </p>
+      </div>
+
+      <!-- 2. 특이사항 및 최적화 실행 내역 (Operational Anomalies & Actions) -->
+      <div class="bg-white border border-[#E2DED4] rounded-2xl p-6 shadow-sm relative overflow-hidden">
+        <div class="absolute top-0 left-0 w-1.5 h-full bg-amber-500"></div>
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-amber-700 text-[11px] font-bold tracking-wider uppercase">Anomalies & Actions</span>
+          <span class="text-[11px] font-semibold text-amber-600">최적화 조치 완료 2건</span>
+        </div>
+        <h3 class="text-base font-bold text-slate-900 mb-2">운영 이슈 및 대응 내역</h3>
+        <ul class="text-xs leading-relaxed text-slate-600 space-y-1.5 list-disc list-inside">
+          <li>
+            <strong class="text-slate-800">네이버 3월 3주차 CPC 급등 대응:</strong> 경쟁 프로모션 입찰로 메인 키워드 CPC가 22% 상승함에 따라 실시간 입찰가 상한선을 1,800원으로 제한 조정하여 예산 누수 방어.
+          </li>
+          <li>
+            <strong class="text-slate-800">메타 소재 피로도 교체:</strong> 노출 빈도수 3.8회 도달 시점에 신규 숏폼 동영상 소재 2종을 투입하여 주간 클릭률 1.85% 선을 성공적으로 회복함.
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- 2단계: 핵심 KPI 스코어카드 (MoM 표시) -->
+    <section class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5" id="kpi-cards-container">
+      <div class="bg-white border border-[#E2DED4] rounded-xl p-4 shadow-sm">
+        <span class="text-xs font-medium text-slate-500">총 광고비 (VAT포함)</span>
+        <div class="text-lg font-bold text-slate-900 mt-1" id="kpi-cost">₩0</div>
+        <span class="text-[10px] text-emerald-600 font-bold mt-1 inline-block">MoM +4.2%</span>
+      </div>
+      <div class="bg-white border border-[#E2DED4] rounded-xl p-4 shadow-sm">
+        <span class="text-xs font-medium text-slate-500">총 노출수</span>
+        <div class="text-lg font-bold text-slate-900 mt-1" id="kpi-impressions">0</div>
+        <span class="text-[10px] text-emerald-600 font-bold mt-1 inline-block">MoM +8.1%</span>
+      </div>
+      <div class="bg-white border border-[#E2DED4] rounded-xl p-4 shadow-sm">
+        <span class="text-xs font-medium text-slate-500">총 클릭수</span>
+        <div class="text-lg font-bold text-slate-900 mt-1" id="kpi-clicks">0</div>
+        <span class="text-[10px] text-emerald-600 font-bold mt-1 inline-block">MoM +12.4%</span>
+      </div>
+      <div class="bg-white border border-[#E2DED4] rounded-xl p-4 shadow-sm">
+        <span class="text-xs font-medium text-slate-500">평균 클릭률 (CTR)</span>
+        <div class="text-lg font-bold text-slate-900 mt-1" id="kpi-ctr">0.00%</div>
+        <span class="text-[10px] text-emerald-600 font-bold mt-1 inline-block">MoM +0.28%p</span>
+      </div>
+      <div class="bg-white border border-[#E2DED4] rounded-xl p-4 shadow-sm">
+        <span class="text-xs font-medium text-slate-500">평균 클릭비용 (CPC)</span>
+        <div class="text-lg font-bold text-slate-900 mt-1" id="kpi-cpc">₩0</div>
+        <span class="text-[10px] text-emerald-600 font-bold mt-1 inline-block">MoM -7.3%</span>
+      </div>
+      <div class="bg-white border border-[#E2DED4] rounded-xl p-4 shadow-sm">
+        <span class="text-xs font-medium text-slate-500">총 전환수 (CV)</span>
+        <div class="text-lg font-bold text-slate-900 mt-1" id="kpi-conversions">0</div>
+        <span class="text-[10px] text-emerald-600 font-bold mt-1 inline-block">MoM +15.0%</span>
+      </div>
+    </section>
+
+    <!-- 3단계: 인터랙티브 시각화 차트 영역 -->
+    <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <!-- 듀얼 액시스 추이 차트 (비용 & 클릭수) -->
+      <div class="lg:col-span-2 bg-white border border-[#E2DED4] rounded-2xl p-6 shadow-sm flex flex-col justify-between">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-sm font-bold text-slate-900">일별 집행 비용 및 클릭 유입 추이</h3>
+          <span class="text-[11px] text-slate-400">좌축: 비용(원) / 우축: 클릭수(건)</span>
+        </div>
+        <div class="chart-container">
+          <canvas id="trendChart"></canvas>
+        </div>
+      </div>
+
+      <!-- 매체별 예산 비중 도넛 차트 -->
+      <div class="bg-white border border-[#E2DED4] rounded-2xl p-6 shadow-sm flex flex-col justify-between">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-sm font-bold text-slate-900">매체별 비용 소진 비중</h3>
+          <span class="text-[11px] text-slate-400">VAT 포함 기준</span>
+        </div>
+        <div class="chart-container">
+          <canvas id="shareChart"></canvas>
+        </div>
+        <p class="text-[11px] text-center text-slate-500 mt-2">상단 매체 필터 선택 시 피벗 연산이 적용됩니다.</p>
+      </div>
+    </section>
+
+    <!-- 4단계: 일별 상세 데이터 피벗 테이블 -->
+    <section class="bg-white border border-[#E2DED4] rounded-2xl shadow-sm overflow-hidden">
+      <div class="p-6 border-b border-[#E2DED4] flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50/50">
+        <div>
+          <h3 class="text-sm font-bold text-slate-900">일별 성과 상세 피벗 집계표</h3>
+          <p class="text-xs text-slate-500 mt-0.5">복사-붙여넣기 기반 데이터 자동 정규화 연산 결과</p>
+        </div>
+        <span class="text-xs font-semibold text-slate-600 bg-white border border-slate-200 px-3 py-1 rounded-md" id="table-row-count">집계 일수: 0일</span>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs" id="performance-table">
+          <thead class="bg-slate-100 text-slate-600 border-b border-[#E2DED4] uppercase tracking-wider">
+            <tr>
+              <th class="py-3 px-4 font-bold">집행일자</th>
+              <th class="py-3 px-4 font-bold">매체</th>
+              <th class="py-3 px-4 font-bold text-right">노출수</th>
+              <th class="py-3 px-4 font-bold text-right">클릭수</th>
+              <th class="py-3 px-4 font-bold text-right">클릭률 (CTR)</th>
+              <th class="py-3 px-4 font-bold text-right">평균클릭비용 (CPC)</th>
+              <th class="py-3 px-4 font-bold text-right">총비용 (VAT포함)</th>
+              <th class="py-3 px-4 font-bold text-right">전환수</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100 font-mono text-slate-700" id="table-body">
+            <!-- Dynamic JavaScript Rendering -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="bg-white border-t border-[#E2DED4] py-4 text-center text-xs text-slate-400 mt-auto">
+    <p>© 2026 Agency Performance Reporting System. All rights reserved.</p>
+  </footer>
+
+  <script>
+    // 1. 일별 원천 데이터셋 (네이버: VAT 포함 / 메타, 구글: 공급가 x 1.10 가산 완료)
+    const rawDataset = [
+      { date: '2026-03-01', media: 'Naver', impressions: 45200, clicks: 1250, cost: 1375000, conv: 62 },
+      { date: '2026-03-01', media: 'Meta', impressions: 89000, clicks: 1420, cost: 715000, conv: 35 },
+      { date: '2026-03-01', media: 'Google', impressions: 32000, clicks: 880, cost: 660000, conv: 41 },
+      
+      { date: '2026-03-02', media: 'Naver', impressions: 48100, clicks: 1310, cost: 1441000, conv: 68 },
+      { date: '2026-03-02', media: 'Meta', impressions: 91500, clicks: 1505, cost: 748000, conv: 39 },
+      { date: '2026-03-02', media: 'Google', impressions: 34100, clicks: 920, cost: 693000, conv: 45 },
+
+      { date: '2026-03-03', media: 'Naver', impressions: 51200, clicks: 1440, cost: 1584000, conv: 74 },
+      { date: '2026-03-03', media: 'Meta', impressions: 88400, clicks: 1390, cost: 693000, conv: 34 },
+      { date: '2026-03-03', media: 'Google', impressions: 31000, clicks: 850, cost: 638000, conv: 38 },
+
+      { date: '2026-03-04', media: 'Naver', impressions: 46800, clicks: 1280, cost: 1408000, conv: 63 },
+      { date: '2026-03-04', media: 'Meta', impressions: 94000, clicks: 1580, cost: 792000, conv: 42 },
+      { date: '2026-03-04', media: 'Google', impressions: 35500, clicks: 980, cost: 737000, conv: 49 },
+
+      { date: '2026-03-05', media: 'Naver', impressions: 49500, clicks: 1390, cost: 1529000, conv: 70 },
+      { date: '2026-03-05', media: 'Meta', impressions: 90200, clicks: 1460, cost: 726000, conv: 37 },
+      { date: '2026-03-05', media: 'Google', impressions: 33200, clicks: 910, cost: 682000, conv: 44 }
+    ];
+
+    let currentMedia = 'ALL';
+    let trendChartInstance = null;
+    let shareChartInstance = null;
+
+    const formatNumber = num => new Intl.NumberFormat('ko-KR').format(Math.round(num));
+    const formatCurrency = num => '₩' + new Intl.NumberFormat('ko-KR').format(Math.round(num));
+
+    // 매체 피벗 상태 전환
+    function setMediaFilter(media) {
+      currentMedia = media;
+      document.querySelectorAll('.media-btn').forEach(btn => {
+        if (btn.dataset.media === media) {
+          btn.className = 'media-btn px-4 py-2 rounded-lg text-xs font-bold transition bg-white text-slate-900 shadow-sm';
+        } else {
+          btn.className = 'media-btn px-4 py-2 rounded-lg text-xs font-bold transition text-slate-600 hover:text-slate-900';
+        }
+      });
+      renderDashboard();
+    }
+
+    // 대시보드 종합 동적 렌더링
+    function renderDashboard() {
+      // 1. 매체 필터링
+      const filtered = currentMedia === 'ALL' 
+        ? rawDataset 
+        : rawDataset.filter(item => item.media === currentMedia);
+
+      // 2. 통합 지표 연산
+      let totalImp = 0, totalClicks = 0, totalCost = 0, totalConv = 0;
+      filtered.forEach(d => {
+        totalImp += d.impressions;
+        totalClicks += d.clicks;
+        totalCost += d.cost;
+        totalConv += d.conv;
+      });
+
+      const avgCtr = totalImp > 0 ? (totalClicks / totalImp) * 100 : 0;
+      const avgCpc = totalClicks > 0 ? (totalCost / totalClicks) : 0;
+
+      // 3. KPI 스코어카드 주입
+      document.getElementById('kpi-cost').innerText = formatCurrency(totalCost);
+      document.getElementById('kpi-impressions').innerText = formatNumber(totalImp);
+      document.getElementById('kpi-clicks').innerText = formatNumber(totalClicks);
+      document.getElementById('kpi-ctr').innerText = avgCtr.toFixed(2) + '%';
+      document.getElementById('kpi-cpc').innerText = formatCurrency(avgCpc);
+      document.getElementById('kpi-conversions').innerText = formatNumber(totalConv);
+
+      // 4. 일별 피벗 데이터 집계
+      const dailyMap = {};
+      filtered.forEach(item => {
+        if (!dailyMap[item.date]) {
+          dailyMap[item.date] = { date: item.date, media: currentMedia === 'ALL' ? '통합' : item.media, impressions: 0, clicks: 0, cost: 0, conv: 0 };
+        }
+        dailyMap[item.date].impressions += item.impressions;
+        dailyMap[item.date].clicks += item.clicks;
+        dailyMap[item.date].cost += item.cost;
+        dailyMap[item.date].conv += item.conv;
+      });
+
+      const dailyAggregated = Object.values(dailyMap).sort((a,b) => a.date.localeCompare(b.date));
+
+      // 5. 하단 피벗 테이블 HTML 렌더링
+      const tbody = document.getElementById('table-body');
+      tbody.innerHTML = '';
+      dailyAggregated.forEach(row => {
+        const rowCtr = row.impressions > 0 ? ((row.clicks / row.impressions) * 100).toFixed(2) : '0.00';
+        const rowCpc = row.clicks > 0 ? formatCurrency(row.cost / row.clicks) : '₩0';
+
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-50 transition border-b border-slate-100';
+        tr.innerHTML = `
+          <td class="py-3 px-4 font-sans font-medium text-slate-900">${row.date}</td>
+          <td class="py-3 px-4 font-sans"><span class="px-2 py-0.5 rounded text-[11px] bg-slate-100 text-slate-700 font-semibold">${row.media}</span></td>
+          <td class="py-3 px-4 text-right">${formatNumber(row.impressions)}</td>
+          <td class="py-3 px-4 text-right">${formatNumber(row.clicks)}</td>
+          <td class="py-3 px-4 text-right text-emerald-700 font-semibold">${rowCtr}%</td>
+          <td class="py-3 px-4 text-right">${rowCpc}</td>
+          <td class="py-3 px-4 text-right font-semibold text-slate-900">${formatCurrency(row.cost)}</td>
+          <td class="py-3 px-4 text-right text-slate-800 font-semibold">${formatNumber(row.conv)}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+      document.getElementById('table-row-count').innerText = `집계 일수: ${dailyAggregated.length}일`;
+
+      // 6. 차트 업데이트
+      updateCharts(dailyAggregated);
+    }
+
+    // Chart.js 시각화 엔진
+    function updateCharts(dailyData) {
+      const labels = dailyData.map(d => d.date.slice(5)); // MM-DD
+      const costs = dailyData.map(d => d.cost);
+      const clicks = dailyData.map(d => d.clicks);
+
+      // 1) 추이 차트 (라인 + 바)
+      if (trendChartInstance) trendChartInstance.destroy();
+      const ctxTrend = document.getElementById('trendChart').getContext('2d');
+      trendChartInstance = new Chart(ctxTrend, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              type: 'line',
+              label: '클릭수 (건)',
+              data: clicks,
+              borderColor: '#059669',
+              backgroundColor: '#059669',
+              yAxisID: 'yClicks',
+              borderWidth: 2,
+              pointRadius: 3,
+              tension: 0.2
+            },
+            {
+              type: 'bar',
+              label: '총비용 (원)',
+              data: costs,
+              backgroundColor: 'rgba(217, 119, 6, 0.25)',
+              borderColor: '#D97706',
+              borderWidth: 1,
+              borderRadius: 4,
+              yAxisID: 'yCost'
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          scales: {
+            x: { grid: { color: '#F3F0E6' }, ticks: { color: '#64748B', font: { size: 10 } } },
+            yCost: {
+              type: 'linear',
+              position: 'left',
+              grid: { color: '#F3F0E6' },
+              ticks: { color: '#64748B', font: { size: 10 }, callback: v => '₩' + (v/10000) + '만' }
+            },
+            yClicks: {
+              type: 'linear',
+              position: 'right',
+              grid: { drawOnChartArea: false },
+              ticks: { color: '#059669', font: { size: 10 } }
+            }
+          },
+          plugins: {
+            legend: { labels: { color: '#334155', font: { size: 11 } } }
+          }
+        }
+      });
+
+      // 2) 매체 비중 도넛 차트
+      if (shareChartInstance) shareChartInstance.destroy();
+      const mediaCosts = { Naver: 0, Meta: 0, Google: 0 };
+      rawDataset.forEach(d => { mediaCosts[d.media] += d.cost; });
+
+      const ctxShare = document.getElementById('shareChart').getContext('2d');
+      shareChartInstance = new Chart(ctxShare, {
+        type: 'doughnut',
+        data: {
+          labels: ['네이버', '메타', '구글'],
+          datasets: [{
+            data: [mediaCosts.Naver, mediaCosts.Meta, mediaCosts.Google],
+            backgroundColor: ['#03C75A', '#1877F2', '#EA4335'],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom', labels: { color: '#334155', font: { size: 11 }, padding: 12 } }
+          },
+          cutout: '70%'
+        }
+      });
+    }
+
+    // SheetJS 서식 보존 다중 시트 엑셀 내보내기
+    function exportToExcel() {
+      const table = document.getElementById('performance-table');
+      const wb = XLSX.utils.book_new();
+      
+      // 집계 결과 시트
+      const wsAggregated = XLSX.utils.table_to_sheet(table);
+
+      // Raw Data 시트 생성
+      const rawHeaders = [["Date", "Media", "Impressions", "Clicks", "Cost_Gross_VAT_Included", "Conversions"]];
+      const rawRows = rawDataset.map(d => [d.date, d.media, d.impressions, d.clicks, d.cost, d.conv]);
+      const wsRaw = XLSX.utils.aoa_to_sheet([...rawHeaders, ...rawRows]);
+
+      XLSX.utils.book_append_sheet(wb, wsAggregated, "Monthly_Report");
+      XLSX.utils.book_append_sheet(wb, wsRaw, "Raw_Data");
+
+      const filename = `Performance_Report_202603_${currentMedia}.xlsx`;
+      XLSX.writeFile(wb, filename);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      renderDashboard();
+    });
+  </script>
+</body>
+</html>
