@@ -2,7 +2,7 @@
 
 <!-- Application Structure Plan:
   1. Security Gate Modal:
-     - ID & Password check (Default: admin / 1234) to grant admin control.
+     - Secure ID & Password check without pre-filled values to grant admin control.
   2. Admin Navigation Header:
      - Agency Branding & Preview Client Report Link (`../index.html`).
   3. Client & Month Selector Tower:
@@ -28,7 +28,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>대행사 관제탑 관리자 시스템 (Admin Control Tower)</title>
-  <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700&display=swap');
@@ -37,7 +36,6 @@
 </head>
 <body class="min-h-screen flex flex-col antialiased">
 
-  <!-- 보안 로그인 모달 (인증 전 레이어) -->
   <div id="login-modal" class="fixed inset-0 bg-slate-900/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-slate-200">
       <div class="text-center mb-6">
@@ -51,12 +49,11 @@
       <form onsubmit="handleLogin(event)" class="space-y-4">
         <div>
           <label class="block text-xs font-bold text-slate-700 mb-1">관리자 ID</label>
-          <input type="text" id="input-admin-id" value="admin" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900" placeholder="ID 입력" required>
+          <input type="text" id="input-admin-id" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900" placeholder="ID 입력" required>
         </div>
         <div>
           <label class="block text-xs font-bold text-slate-700 mb-1">비밀번호</label>
-          <input type="password" id="input-admin-pw" value="1234" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900" placeholder="PW 입력" required>
-          <p class="text-[10px] text-slate-400 mt-1">* 테스트 비밀번호: <strong>1234</strong></p>
+          <input type="password" id="input-admin-pw" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900" placeholder="비밀번호 입력" required>
         </div>
         <div id="login-error" class="text-xs text-red-600 font-semibold hidden">아이디 또는 비밀번호가 올바르지 않습니다.</div>
 
@@ -65,10 +62,8 @@
     </div>
   </div>
 
-  <!-- 메인 어드민 관제탑 화면 (로그인 후 표시) -->
   <div id="admin-main-content" class="hidden flex-col min-h-screen">
     
-    <!-- 어드민 헤더 -->
     <header class="bg-slate-900 text-white sticky top-0 z-40 shadow-md">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex items-center justify-between">
         <div class="flex items-center space-x-2">
@@ -82,23 +77,19 @@
       </div>
     </header>
 
-    <!-- 어드민 작업 본문 -->
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 flex-grow w-full">
       
-      <!-- 1. 고객사 및 집행월 설정 바 -->
       <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
         <div class="flex flex-wrap items-center gap-4">
           <div>
             <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">고객사 선택</label>
             <select id="admin-client-select" onchange="changeClient(this.value)" class="bg-slate-50 border border-slate-300 font-bold text-xs text-slate-900 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-slate-900">
-              <!-- Dynamic Client List -->
             </select>
           </div>
 
           <div>
             <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">집행월 선택</label>
             <div id="admin-month-buttons" class="flex space-x-1">
-              <!-- Dynamic Month Buttons -->
             </div>
           </div>
         </div>
@@ -113,7 +104,6 @@
         </div>
       </div>
 
-      <!-- 2. 코멘트 박스 편집 영역 -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
           <label class="block text-xs font-bold text-slate-800 mb-1.5">
@@ -130,7 +120,6 @@
         </div>
       </div>
 
-      <!-- 3. 엑셀/스프레드시트 원클릭 대량 등록 (Bulk TSV Parser) -->
       <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
           <div>
@@ -144,7 +133,6 @@
         <textarea id="bulk-paste-area" rows="4" class="w-full font-mono text-xs p-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900" placeholder="2026-03-01	Naver	45200	1250	1375000	62&#10;2026-03-01	Meta	89000	1420	715000	35..."></textarea>
       </div>
 
-      <!-- 4. 수동 개별 데이터 편집 테이블 -->
       <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div class="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
           <h3 class="text-xs font-bold text-slate-900">등록된 일별 매체 데이터 (수정 & 삭제)</h3>
@@ -166,7 +154,6 @@
               </tr>
             </thead>
             <tbody id="admin-table-body" class="divide-y divide-slate-100 font-mono">
-              <!-- Dynamic Rows -->
             </tbody>
           </table>
         </div>
@@ -213,8 +200,8 @@
 
     function handleLogin(e) {
       e.preventDefault();
-      const id = document.getElementById('input-admin-id').value;
-      const pw = document.getElementById('input-admin-pw').value;
+      const id = document.getElementById('input-admin-id').value.trim();
+      const pw = document.getElementById('input-admin-pw').value.trim();
 
       if (id === 'admin' && pw === '1234') {
         document.getElementById('login-modal').classList.add('hidden');
